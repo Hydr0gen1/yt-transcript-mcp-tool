@@ -85,6 +85,38 @@ class TestLoadConfig:
         assert config.timeout_seconds == 30.0
 
 
+class TestExpandLanguageCodes:
+    """Both fetch paths require an exact code match, so regional tags need a base-language fallback."""
+
+    def test_inserts_base_language_after_regional_tag(self):
+        assert youtube._expand_language_codes(["en-US"]) == ["en-US", "en"]
+
+    def test_leaves_plain_codes_unchanged(self):
+        assert youtube._expand_language_codes(["en", "es"]) == ["en", "es"]
+
+    def test_preserves_priority_order_across_multiple_regional_tags(self):
+        assert youtube._expand_language_codes(["en-US", "es"]) == ["en-US", "en", "es"]
+
+    def test_does_not_duplicate_an_already_present_base_language(self):
+        assert youtube._expand_language_codes(["en-US", "en"]) == ["en-US", "en"]
+
+    def test_get_transcript_text_passes_expanded_languages_to_fallback(self, monkeypatch):
+        fake_api = MagicMock()
+        fake_api.fetch.side_effect = TranscriptsDisabled(VIDEO_ID)
+        monkeypatch.setattr(youtube, "_build_api", lambda config: fake_api)
+
+        captured = {}
+
+        def fake_fetch_via_ytdlp(video_id, languages, config):
+            captured["languages"] = list(languages)
+            return [{"text": "hi", "start": 0.0, "duration": 1.0}], "en"
+
+        monkeypatch.setattr(youtube, "_fetch_via_ytdlp", fake_fetch_via_ytdlp)
+
+        youtube.get_transcript_text(VIDEO_ID, languages=["en-US"])
+        assert captured["languages"] == ["en-US", "en"]
+
+
 class TestTimeoutSession:
     """_TimeoutSession is what makes YTT_TIMEOUT_SECONDS apply to the primary fetch path."""
 

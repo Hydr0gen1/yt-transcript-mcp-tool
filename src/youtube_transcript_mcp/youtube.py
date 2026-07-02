@@ -325,6 +325,27 @@ def format_transcript(segments: list[dict], include_timestamps: bool) -> str:
     return "\n".join(lines)
 
 
+def _expand_language_codes(languages: list[str]) -> list[str]:
+    """Insert each regional code's base language right after it, in priority order.
+
+    Both fetch paths require an exact language-code match before any
+    base-language fallback logic gets a chance to run: youtube_transcript_api
+    does exact string lookup, and yt-dlp's own subtitleslangs filtering does
+    a regex *fullmatch*, so a plain "en" track is invisible to a request for
+    "en-US" alone -- _pick_best_vtt's base-language matching never gets a
+    track to work with. Expanding ["en-US"] to ["en-US", "en"] up front means
+    both paths still find the base-language track.
+    """
+    expanded: list[str] = []
+    for lang in languages:
+        if lang not in expanded:
+            expanded.append(lang)
+        base = lang.split("-")[0]
+        if base != lang and base not in expanded:
+            expanded.append(base)
+    return expanded
+
+
 def get_transcript_text(
     url: str,
     languages: list[str] | None = None,
@@ -332,6 +353,7 @@ def get_transcript_text(
 ) -> str:
     config = load_config()
     langs = list(languages) if languages else list(config.default_languages)
+    langs = _expand_language_codes(langs)
     video_id = extract_video_id(url)
 
     try:
