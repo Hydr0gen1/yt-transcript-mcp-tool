@@ -236,6 +236,21 @@ def _pick_best_vtt(vtt_files: list[str], languages: list[str]) -> str:
     return vtt_files[0]
 
 
+def _subtitle_lang_patterns(languages: list[str]) -> list[str]:
+    """Build yt-dlp subtitleslangs patterns that also match suffixed variants.
+
+    yt-dlp treats each subtitleslangs entry as a regex *fullmatch* against
+    the available caption codes, but YouTube exposes some captions under
+    codes it invents itself -- e.g. "en-orig" for the original-language
+    track on auto-dubbed videos, or community-caption tracks with random
+    suffixes. A literal "en" only fullmatches the exact "en" track and
+    misses those, before _pick_best_vtt ever gets a file to consider.
+    re.escape() keeps each language code's own characters literal; only the
+    trailing ".*" is a real wildcard.
+    """
+    return [f"{re.escape(lang)}.*" for lang in languages]
+
+
 class _YtdlpSilentLogger:
     """Routes yt-dlp's log messages to stderr, never stdout.
 
@@ -285,7 +300,7 @@ def _fetch_via_ytdlp(
             skip_download=True,
             writesubtitles=True,
             writeautomaticsub=True,
-            subtitleslangs=languages,
+            subtitleslangs=_subtitle_lang_patterns(languages),
             subtitlesformat="vtt",
             outtmpl=outtmpl,
         )

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import tempfile
+import re
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -115,6 +115,30 @@ class TestExpandLanguageCodes:
 
         youtube.get_transcript_text(VIDEO_ID, languages=["en-US"])
         assert captured["languages"] == ["en-US", "en"]
+
+
+class TestSubtitleLangPatterns:
+    """yt-dlp treats subtitleslangs entries as regex fullmatches against available codes."""
+
+    def test_builds_wildcard_suffixed_pattern_per_language(self):
+        assert youtube._subtitle_lang_patterns(["en"]) == ["en.*"]
+
+    def test_pattern_matches_orig_suffixed_and_random_suffixed_codes(self):
+        pattern = youtube._subtitle_lang_patterns(["en"])[0]
+        regex = re.compile(pattern)
+        assert regex.fullmatch("en")
+        assert regex.fullmatch("en-orig")
+        assert regex.fullmatch("en-uYU-mmqFLq8")
+        assert not regex.fullmatch("es")
+        assert not regex.fullmatch("de-en")
+
+    def test_escapes_regex_metacharacters_in_language_codes(self):
+        # A language code is never attacker-controlled regex, but must still
+        # be treated as a literal string, not interpreted as a pattern.
+        pattern = youtube._subtitle_lang_patterns(["en.US"])[0]
+        regex = re.compile(pattern)
+        assert regex.fullmatch("en.US")
+        assert not regex.fullmatch("enXUS")
 
 
 class TestTimeoutSession:
