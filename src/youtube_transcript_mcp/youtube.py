@@ -9,6 +9,7 @@ translated into user-readable messages.
 from __future__ import annotations
 
 import glob
+import html
 import os
 import re
 import sys
@@ -204,7 +205,9 @@ def _parse_vtt(path: str) -> list[dict]:
 
         text_lines = []
         while i < len(lines) and lines[i].strip():
-            text_lines.append(_VTT_TAG_RE.sub("", lines[i]).strip())
+            # Strip WebVTT tags, then decode entities (e.g. "&amp;" -> "&")
+            # so fallback text matches what the primary API path returns.
+            text_lines.append(html.unescape(_VTT_TAG_RE.sub("", lines[i])).strip())
             i += 1
 
         text = " ".join(t for t in text_lines if t).strip()

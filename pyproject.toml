@@ -5,7 +5,10 @@ description = "MCP server that fetches YouTube video transcripts and metadata"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "mcp[cli]>=1.2.0",
+    # 1.12.3 is the first release where FastMCP.__init__ accepts
+    # transport_security= (server.py's SSE host-allowlist fix relies on
+    # it); custom_route()/sse_app() are older but this is the binding floor.
+    "mcp[cli]>=1.12.3",
     "youtube-transcript-api>=1.0.0",
     "yt-dlp>=2024.1.0",
     "starlette>=0.37.0",

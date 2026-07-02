@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -116,6 +118,35 @@ class TestTimeoutSession:
         http_client = api._fetcher._http_client
         assert isinstance(http_client, youtube._TimeoutSession)
         assert http_client._timeout_seconds == 42.0
+
+
+class TestParseVtt:
+    """The yt-dlp fallback path parses raw WebVTT; entities must come out decoded."""
+
+    def _write_vtt(self, tmp_path, content: str) -> str:
+        path = Path(tmp_path) / "captions.vtt"
+        path.write_text(content, encoding="utf-8")
+        return str(path)
+
+    def test_decodes_html_entities(self, tmp_path):
+        vtt = (
+            "WEBVTT\n\n"
+            "00:00:00.000 --> 00:00:02.000\n"
+            "Rock &amp; Roll and it&#39;s &lt;great&gt;\n"
+        )
+        path = self._write_vtt(tmp_path, vtt)
+        segments = youtube._parse_vtt(path)
+        assert segments[0]["text"] == "Rock & Roll and it's <great>"
+
+    def test_strips_inline_tags_without_reintroducing_them_via_entities(self, tmp_path):
+        vtt = (
+            "WEBVTT\n\n"
+            "00:00:00.000 --> 00:00:02.000\n"
+            "<00:00:00.500><c> karaoke</c> word &amp; more\n"
+        )
+        path = self._write_vtt(tmp_path, vtt)
+        segments = youtube._parse_vtt(path)
+        assert segments[0]["text"] == "karaoke word & more"
 
 
 class TestFormatTranscript:
