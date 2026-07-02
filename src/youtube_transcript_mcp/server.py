@@ -1,8 +1,22 @@
-"""MCP server exposing YouTube transcript tools via FastMCP."""
+"""MCP server exposing YouTube transcript tools via FastMCP.
+
+Two transports are exposed from this one module:
+
+- stdio, via `main()` / the `youtube-transcript-mcp` console script, for local
+  Claude Desktop/Code usage (`uv run youtube-transcript-mcp`).
+- SSE, via the module-level `app` ASGI object, for remote deployment (e.g.
+  Render) served by an external ASGI server such as uvicorn
+  (`uvicorn youtube_transcript_mcp.server:app`).
+
+Tool definitions and business logic are transport-agnostic and unchanged
+between the two.
+"""
 
 from __future__ import annotations
 
 from mcp.server.fastmcp import FastMCP
+from starlette.requests import Request
+from starlette.responses import JSONResponse, Response
 
 from . import youtube
 
@@ -75,7 +89,27 @@ def get_video_metadata(url: str) -> dict:
     }
 
 
+@mcp.custom_route("/health", methods=["GET"])
+async def health_check(request: Request) -> Response:
+    """Liveness probe for Render's health check and cold-start wake-ups.
+
+    Deliberately does no YouTube/yt-dlp work -- it must return fast so Render
+    (and anything polling to warm up a spun-down free-tier instance) gets a
+    quick, cheap signal that the process is up.
+    """
+    return JSONResponse({"status": "ok"})
+
+
+# ASGI app for the SSE transport. Served remotely via
+# `uvicorn youtube_transcript_mcp.server:app` (see Dockerfile). Routes:
+#   GET  /sse        - SSE connection endpoint MCP clients connect to
+#   POST /messages/   - message-send endpoint used by the SSE transport
+#   GET  /health      - plain liveness check, not part of the MCP protocol
+app = mcp.sse_app()
+
+
 def main() -> None:
+    """Entry point for local stdio usage (Claude Desktop/Code `uv run youtube-transcript-mcp`)."""
     mcp.run()
 
 

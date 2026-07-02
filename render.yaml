@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: youtube-transcript-mcp
+    env: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: YTT_DEFAULT_LANGUAGES
+        value: en
+      - key: YTT_TIMEOUT_SECONDS
+        value: "15"
+      - key: YTT_PROXY_URL
+        sync: false

@@ -8,6 +8,8 @@ dependencies = [
     "mcp[cli]>=1.2.0",
     "youtube-transcript-api>=1.0.0",
     "yt-dlp>=2024.1.0",
+    "starlette>=0.37.0",
+    "uvicorn>=0.30.0",
 ]
 
 [project.scripts]
@@ -23,6 +25,7 @@ packages = ["src/youtube_transcript_mcp"]
 [dependency-groups]
 dev = [
     "pytest>=8.0.0",
+    "httpx>=0.27.0",
 ]
 
 [tool.pytest.ini_options]

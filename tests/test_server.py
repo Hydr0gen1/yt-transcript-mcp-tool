@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
+from starlette.testclient import TestClient
 
 from youtube_transcript_mcp import server
 from youtube_transcript_mcp.errors import InvalidURLError
@@ -65,3 +66,19 @@ def test_get_video_metadata_shapes_output(monkeypatch):
         "duration_seconds": 120,
         "upload_date": "2020-01-01",
     }
+
+
+class TestSSEApp:
+    """The ASGI app served remotely (e.g. on Render) via uvicorn."""
+
+    def test_health_endpoint_returns_ok(self):
+        client = TestClient(server.app)
+        response = client.get("/health")
+        assert response.status_code == 200
+        assert response.json() == {"status": "ok"}
+
+    def test_sse_and_message_routes_are_mounted(self):
+        paths = {getattr(route, "path", None) for route in server.app.routes}
+        assert "/sse" in paths
+        assert "/messages" in paths
+        assert "/health" in paths

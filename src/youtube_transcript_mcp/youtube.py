@@ -17,7 +17,6 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-import yt_dlp
 from youtube_transcript_api import (
     IpBlocked,
     NoTranscriptFound,
@@ -253,6 +252,8 @@ def _fetch_via_ytdlp(
     video_id: str, languages: list[str], config: Config
 ) -> tuple[list[dict], str]:
     """Fallback transcript fetch: ask yt-dlp to download subtitle/auto-caption tracks."""
+    import yt_dlp  # lazy: keeps this out of server startup/cold-start path
+
     video_url = f"https://www.youtube.com/watch?v={video_id}"
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -380,6 +381,8 @@ def list_available_transcripts(url: str) -> list[TranscriptInfo]:
 
 
 def get_video_metadata(url: str) -> VideoMetadata:
+    import yt_dlp  # lazy: keeps this out of server startup/cold-start path
+
     config = load_config()
     video_id = extract_video_id(url)
     video_url = f"https://www.youtube.com/watch?v={video_id}"
