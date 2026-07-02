@@ -16,12 +16,20 @@ from __future__ import annotations
 
 import os
 
+from dotenv import load_dotenv
 from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
-from . import youtube
+# Populates os.environ from a .env file in the current/ancestor directory, if
+# one exists (a no-op otherwise -- e.g. Docker/Render, which inject real
+# process env vars and never ship a .env file). Must run before anything
+# below reads YTT_* or RENDER_* env vars, including _build_transport_security()
+# at module level just below.
+load_dotenv()
+
+from . import youtube  # noqa: E402
 
 # The MCP SDK only auto-enables its Host-header allowlist (DNS-rebinding
 # protection) when FastMCP's `host` is left at its localhost default, and in

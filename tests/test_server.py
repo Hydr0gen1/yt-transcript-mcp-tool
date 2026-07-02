@@ -107,3 +107,15 @@ class TestTransportSecurity:
         monkeypatch.setenv("RENDER_EXTERNAL_HOSTNAME", "my-service.onrender.com")
         settings = server._build_transport_security()
         assert "my-service.onrender.com" in settings.allowed_hosts
+
+
+class TestDotenvLoading:
+    """README documents a .env file as a supported config path (local/non-Render use)."""
+
+    def test_module_import_loads_dotenv_before_reading_env_vars(self, monkeypatch):
+        import importlib
+
+        calls = []
+        monkeypatch.setattr("dotenv.load_dotenv", lambda *a, **kw: calls.append(True))
+        importlib.reload(server)
+        assert calls == [True]
