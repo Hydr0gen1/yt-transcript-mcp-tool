@@ -5,6 +5,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
+import requests
 from youtube_transcript_api import (
     IpBlocked,
     NoTranscriptFound,
@@ -80,6 +81,41 @@ class TestLoadConfig:
         assert config.default_languages == ["es", "fr", "de"]
         assert config.proxy_url == "http://proxy.example:8080"
         assert config.timeout_seconds == 30.0
+
+
+class TestTimeoutSession:
+    """_TimeoutSession is what makes YTT_TIMEOUT_SECONDS apply to the primary fetch path."""
+
+    def test_applies_default_timeout(self, monkeypatch):
+        session = youtube._TimeoutSession(7.5)
+        captured = {}
+
+        def fake_request(self, method, url, **kwargs):
+            captured.update(kwargs)
+            return MagicMock()
+
+        monkeypatch.setattr(requests.Session, "request", fake_request)
+        session.get("http://example.com")
+        assert captured["timeout"] == 7.5
+
+    def test_does_not_override_explicit_timeout(self, monkeypatch):
+        session = youtube._TimeoutSession(7.5)
+        captured = {}
+
+        def fake_request(self, method, url, **kwargs):
+            captured.update(kwargs)
+            return MagicMock()
+
+        monkeypatch.setattr(requests.Session, "request", fake_request)
+        session.get("http://example.com", timeout=1.0)
+        assert captured["timeout"] == 1.0
+
+    def test_build_api_uses_timeout_session_with_configured_timeout(self):
+        config = youtube.Config(default_languages=["en"], proxy_url=None, timeout_seconds=42.0)
+        api = youtube._build_api(config)
+        http_client = api._fetcher._http_client
+        assert isinstance(http_client, youtube._TimeoutSession)
+        assert http_client._timeout_seconds == 42.0
 
 
 class TestFormatTranscript:

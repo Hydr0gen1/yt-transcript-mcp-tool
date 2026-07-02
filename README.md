@@ -61,6 +61,26 @@ Set these as environment variables (or in a `.env` file in the project root):
 | `YTT_DEFAULT_LANGUAGES` | `en` | Comma-separated default language codes, e.g. `en,es,fr` |
 | `YTT_PROXY_URL` | unset | Proxy URL used for both transcript fetches and `yt-dlp` calls |
 | `YTT_TIMEOUT_SECONDS` | `15` | Timeout (seconds) per fetch |
+| `YTT_ALLOWED_HOSTS` | unset | Comma-separated Host headers to allow on the SSE endpoints, e.g. `my-app.onrender.com` (remote/SSE only, see below) |
+
+### About `YTT_ALLOWED_HOSTS` (remote/SSE deployments)
+
+The SSE transport keeps the MCP SDK's DNS-rebinding protection enabled,
+which validates the incoming `Host` header against an allowlist.
+`127.0.0.1`/`localhost`/`::1` are always allowed (so local `uv run` and
+local Docker testing work out of the box), but a request reaching a remote
+deployment carries a public Host header instead, so that hostname needs to
+be added to the allowlist or every SSE connection gets rejected with `421
+Misdirected Request`.
+
+On Render this is handled automatically: Render sets `RENDER_EXTERNAL_HOSTNAME`
+for every web service, and the server picks it up with no config needed. Set
+`YTT_ALLOWED_HOSTS` yourself if you're deploying elsewhere, or if you've
+mapped a custom domain on top of the `onrender.com` one, e.g.:
+
+```bash
+export YTT_ALLOWED_HOSTS="transcripts.example.com"
+```
 
 ### About `YTT_PROXY_URL`
 
@@ -117,7 +137,9 @@ Docker container. This is what `Dockerfile` and `render.yaml` are for.
 3. Plan: **Free**.
 4. Health check path: `/health`.
 5. Add environment variables as needed: `YTT_DEFAULT_LANGUAGES`,
-   `YTT_TIMEOUT_SECONDS`, `YTT_PROXY_URL`.
+   `YTT_TIMEOUT_SECONDS`, `YTT_PROXY_URL`. `YTT_ALLOWED_HOSTS` is normally
+   not needed on Render since `RENDER_EXTERNAL_HOSTNAME` is auto-detected
+   (see Configuration below) — only set it for a custom domain.
 
 ### Free tier constraints (read this before relying on it)
 

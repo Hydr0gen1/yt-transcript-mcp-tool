@@ -14,13 +14,60 @@ between the two.
 
 from __future__ import annotations
 
+import os
+
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 from . import youtube
 
-mcp = FastMCP("youtube-transcript")
+# The MCP SDK only auto-enables its Host-header allowlist (DNS-rebinding
+# protection) when FastMCP's `host` is left at its localhost default, and in
+# that case the allowlist only contains localhost/127.0.0.1/::1. A remote
+# deployment (Render, etc.) is reached with a public Host header, so with the
+# SDK default every SSE request gets rejected with 421 before the MCP
+# handshake -- `/health` still passes since it bypasses this SSE-specific
+# check entirely. We keep the protection on but extend the allowlist to the
+# hostname(s) this service is actually reachable at.
+_LOCALHOST_ALLOWED_HOSTS = ["127.0.0.1:*", "localhost:*", "[::1]:*"]
+_LOCALHOST_ALLOWED_ORIGINS = [
+    "http://127.0.0.1:*",
+    "http://localhost:*",
+    "http://[::1]:*",
+]
+
+
+def _build_transport_security() -> TransportSecuritySettings:
+    extra_hosts = [
+        host.strip()
+        for host in os.environ.get("YTT_ALLOWED_HOSTS", "").split(",")
+        if host.strip()
+    ]
+    # Render sets this automatically for every web service (e.g.
+    # "my-app.onrender.com"); YTT_ALLOWED_HOSTS covers custom domains or
+    # other hosts on top of that.
+    render_hostname = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
+    if render_hostname:
+        extra_hosts.append(render_hostname)
+
+    allowed_hosts = list(_LOCALHOST_ALLOWED_HOSTS)
+    allowed_origins = list(_LOCALHOST_ALLOWED_ORIGINS)
+    for host in extra_hosts:
+        allowed_hosts.append(host)
+        allowed_hosts.append(f"{host}:*")
+        allowed_origins.append(f"https://{host}")
+        allowed_origins.append(f"http://{host}")
+
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=allowed_hosts,
+        allowed_origins=allowed_origins,
+    )
+
+
+mcp = FastMCP("youtube-transcript", transport_security=_build_transport_security())
 
 
 @mcp.tool()

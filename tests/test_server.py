@@ -82,3 +82,28 @@ class TestSSEApp:
         assert "/sse" in paths
         assert "/messages" in paths
         assert "/health" in paths
+
+
+class TestTransportSecurity:
+    """Remote (Render) requests arrive with a public Host header, not localhost."""
+
+    def test_default_only_allows_localhost(self, monkeypatch):
+        monkeypatch.delenv("YTT_ALLOWED_HOSTS", raising=False)
+        monkeypatch.delenv("RENDER_EXTERNAL_HOSTNAME", raising=False)
+        settings = server._build_transport_security()
+        assert settings.enable_dns_rebinding_protection is True
+        assert set(settings.allowed_hosts) == set(server._LOCALHOST_ALLOWED_HOSTS)
+
+    def test_ytt_allowed_hosts_env_var_is_included(self, monkeypatch):
+        monkeypatch.setenv("YTT_ALLOWED_HOSTS", "my-app.onrender.com, my-custom-domain.com")
+        monkeypatch.delenv("RENDER_EXTERNAL_HOSTNAME", raising=False)
+        settings = server._build_transport_security()
+        assert "my-app.onrender.com" in settings.allowed_hosts
+        assert "my-custom-domain.com" in settings.allowed_hosts
+        assert "https://my-app.onrender.com" in settings.allowed_origins
+
+    def test_render_external_hostname_is_auto_detected(self, monkeypatch):
+        monkeypatch.delenv("YTT_ALLOWED_HOSTS", raising=False)
+        monkeypatch.setenv("RENDER_EXTERNAL_HOSTNAME", "my-service.onrender.com")
+        settings = server._build_transport_security()
+        assert "my-service.onrender.com" in settings.allowed_hosts

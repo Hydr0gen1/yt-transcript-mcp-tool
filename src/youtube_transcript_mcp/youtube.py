@@ -17,6 +17,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+import requests
 from youtube_transcript_api import (
     IpBlocked,
     NoTranscriptFound,
@@ -112,13 +113,31 @@ def extract_video_id(url: str) -> str:
     raise InvalidURLError(f"Could not parse a YouTube video ID from: {url!r}")
 
 
+class _TimeoutSession(requests.Session):
+    """A requests.Session that applies a default timeout to every request.
+
+    youtube_transcript_api issues its HTTP calls without ever passing a
+    timeout, so YTT_TIMEOUT_SECONDS would otherwise have no effect on the
+    primary fetch/list path and a stalled connection could hang indefinitely.
+    """
+
+    def __init__(self, timeout_seconds: float):
+        super().__init__()
+        self._timeout_seconds = timeout_seconds
+
+    def request(self, *args, **kwargs):
+        kwargs.setdefault("timeout", self._timeout_seconds)
+        return super().request(*args, **kwargs)
+
+
 def _build_api(config: Config) -> YouTubeTranscriptApi:
     proxy_config = None
     if config.proxy_url:
         proxy_config = GenericProxyConfig(
             http_url=config.proxy_url, https_url=config.proxy_url
         )
-    return YouTubeTranscriptApi(proxy_config=proxy_config)
+    http_client = _TimeoutSession(config.timeout_seconds)
+    return YouTubeTranscriptApi(proxy_config=proxy_config, http_client=http_client)
 
 
 def _with_retry(func, *args, **kwargs):
