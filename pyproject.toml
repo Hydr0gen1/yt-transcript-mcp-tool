@@ -1,0 +1,39 @@
+[project]
+name = "youtube-transcript-mcp"
+version = "0.1.0"
+description = "MCP server that fetches YouTube video transcripts and metadata"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    # 1.12.3 is the first release where FastMCP.__init__ accepts
+    # transport_security= (server.py's SSE host-allowlist fix relies on
+    # it); custom_route()/sse_app() are older but this is the binding floor.
+    "mcp[cli]>=1.12.3",
+    "youtube-transcript-api>=1.0.0",
+    "yt-dlp>=2024.1.0",
+    "starlette>=0.37.0",
+    "uvicorn>=0.30.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.scripts]
+youtube-transcript-mcp = "youtube_transcript_mcp.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/youtube_transcript_mcp"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "httpx>=0.27.0",
+]
+
+[tool.pytest.ini_options]
+addopts = "-m 'not integration'"
+markers = [
+    "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+]

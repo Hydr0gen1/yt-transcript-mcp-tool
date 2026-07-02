@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: youtube-transcript-mcp
+    env: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: YTT_DEFAULT_LANGUAGES
+        value: en
+      - key: YTT_TIMEOUT_SECONDS
+        value: "15"
+      - key: YTT_PROXY_URL
+        sync: false
+      # Not needed for the default *.onrender.com hostname (auto-detected
+      # via RENDER_EXTERNAL_HOSTNAME) -- only set this if you've mapped a
+      # custom domain onto the service.
+      - key: YTT_ALLOWED_HOSTS
+        sync: false
